@@ -636,6 +636,14 @@ textarea::placeholder {
   pointer-events: none;
 }
 
+.export-segment-frame {
+  position: fixed;
+  top: 0;
+  left: -100000px;
+  z-index: -1;
+  pointer-events: none;
+}
+
 .wechat-mode .article-canvas {
   width: var(--article-canvas-width, 430px) !important;
   max-width: none;
@@ -653,6 +661,7 @@ textarea::placeholder {
 }
 
 .article-canvas {
+  position: relative;
   width: var(--article-canvas-width, 430px);
   min-height: 640px;
   overflow: hidden;
@@ -660,6 +669,35 @@ textarea::placeholder {
   background: var(--article-paper, #f8f5ed);
   color: var(--article-text-color, #4e493f);
   box-shadow: 0 24px 70px #25231f1f;
+}
+
+.split-guide-lines {
+  position: absolute;
+  inset: 0;
+  z-index: 12;
+  pointer-events: none;
+}
+
+.split-guide-lines span {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 0;
+  border-top: 1px dashed #ff3b30;
+  box-shadow: 0 0 0 1px #ffffffd9;
+}
+
+.split-guide-lines span::after {
+  position: absolute;
+  top: -10px;
+  right: 10px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  color: #ff3b30;
+  background: #ffffffe8;
+  font-size: 10px;
+  font-weight: 700;
+  content: "裁切";
 }
 
 .article-body {
@@ -1011,6 +1049,68 @@ textarea::placeholder {
   background: #fbfbfd;
   text-align: right;
   font-size: 12px;
+}
+
+.split-control-section {
+  display: grid;
+  gap: 10px;
+}
+
+.split-toggle-row,
+.split-number-field,
+.split-cut-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  color: #86868b;
+  font-size: 11.5px;
+}
+
+.split-toggle-row button,
+.split-preset-row button {
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid #e5e5ea;
+  border-radius: 10px;
+  color: #1d1d1f;
+  background: #fbfbfd;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.split-toggle-row button.active {
+  border-color: #007aff;
+  color: #0071e3;
+  background: #f0f7ff;
+}
+
+.split-mode-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.split-number-field input,
+.split-cut-field input {
+  width: 100%;
+  height: 30px;
+  padding: 0 9px;
+  border: 1px solid #e5e5ea;
+  border-radius: 10px;
+  outline: none;
+  color: #1d1d1f;
+  background: #fbfbfd;
+  text-align: right;
+  font-size: 12px;
+}
+
+.split-cut-field {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.split-preset-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
 }
 
 .field-grid label {

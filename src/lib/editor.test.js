@@ -3,9 +3,11 @@ import {
   appName,
   canvasWidthPresets,
   createArticleVars,
+  createSplitSegments,
   fontOptions,
   getFontFamily,
   imageRatioOptions,
+  parseSplitCuts,
   createImageAssetToken,
   convertMarkdownImagesToAssets,
   deleteMarkdownImageAt,
@@ -143,6 +145,21 @@ describe('style helpers', () => {
     expect(syncScrollTop({ sourceTop: 250, sourceMax: 1000, targetMax: 2000 })).toBe(500);
     expect(syncScrollTop({ sourceTop: 0, sourceMax: 0, targetMax: 2000 })).toBe(0);
     expect(syncScrollTop({ sourceTop: 1200, sourceMax: 1000, targetMax: 2000 })).toBe(2000);
+  });
+
+  it('creates export split segments for equal and free cuts', () => {
+    expect(createSplitSegments(900, { enabled: true, mode: 'equal', parts: 3, cuts: '' })).toEqual([
+      { index: 0, start: 0, end: 300, height: 300 },
+      { index: 1, start: 300, end: 600, height: 300 },
+      { index: 2, start: 600, end: 900, height: 300 }
+    ]);
+    expect(parseSplitCuts('50, 25，75 100 -1 xx 50')).toEqual([25, 50, 75]);
+    expect(createSplitSegments(1000, { enabled: true, mode: 'free', parts: 3, cuts: '25, 50, 75' })).toEqual([
+      { index: 0, start: 0, end: 250, height: 250 },
+      { index: 1, start: 250, end: 500, height: 250 },
+      { index: 2, start: 500, end: 750, height: 250 },
+      { index: 3, start: 750, end: 1000, height: 250 }
+    ]);
   });
 
   it('replaces and deletes a specific markdown image by index', () => {

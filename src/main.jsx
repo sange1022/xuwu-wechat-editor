@@ -22,6 +22,7 @@ import {
   Palette,
   Quote,
   RotateCcw,
+  Scissors,
   Table2,
   Upload
 } from 'lucide-react';
@@ -31,9 +32,11 @@ import {
   canvasWidthPresets,
   createArticleVars,
   createImageAssetToken,
+  createSplitSegments,
   convertMarkdownImagesToAssets,
   defaultMarkdown,
   defaultSettings,
+  defaultSplitSettings,
   deleteMarkdownImageAt,
   fontOptions,
   imageRatioOptions,
@@ -125,6 +128,28 @@ async function createExportCloneWithImages(sourceNode) {
   return { clone, wrapper };
 }
 
+function downloadDataUrl(url, filename) {
+  const link = document.createElement('a');
+  link.download = filename;
+  link.href = url;
+  link.click();
+}
+
+function buildSegmentFrame(preparedClone, segment, width) {
+  const frame = document.createElement('div');
+  const segmentClone = preparedClone.cloneNode(true);
+  frame.className = 'export-segment-frame';
+  frame.style.width = `${width}px`;
+  frame.style.height = `${segment.height}px`;
+  frame.style.overflow = 'hidden';
+  frame.style.background = 'transparent';
+  segmentClone.style.transform = `translateY(-${segment.start}px)`;
+  segmentClone.style.transformOrigin = 'top left';
+  frame.appendChild(segmentClone);
+  document.body.appendChild(frame);
+  return frame;
+}
+
 function App() {
   const [markdown, setMarkdown] = useLocalState('flipped-local-markdown', defaultMarkdown);
   const [settings, setSettings] = useLocalState('flipped-local-settings', defaultSettings);
@@ -136,6 +161,7 @@ function App() {
   const [copyOpen, setCopyOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [cropPositions, setCropPositions] = useLocalState('flipped-local-image-crops', {});
+  const [splitSettings, setSplitSettings] = useLocalState('flipped-local-split-settings', defaultSplitSettings);
   const [replaceImageIndex, setReplaceImageIndex] = useState(null);
   const textareaRef = useRef(null);
   const exportRef = useRef(null);
@@ -156,6 +182,11 @@ function App() {
   }), [settings, template]);
 
   const activeSettings = { ...defaultSettings, ...settings };
+  const activeSplitSettings = { ...defaultSplitSettings, ...splitSettings };
+  const previewSplitSegments = createSplitSegments(100, activeSplitSettings);
+  const previewCutLines = activeSplitSettings.enabled
+    ? previewSplitSegments.slice(1).map((segment) => segment.start)
+    : [];
   const lines = Math.max(12, markdown.split('\n').length);
 
   useEffect(() => {
@@ -275,16 +306,33 @@ function App() {
     let exportClone;
     try {
       exportClone = await createExportCloneWithImages(exportRef.current);
-      const url = await toPng(exportClone.clone, {
+      const canvas = exportClone.clone.querySelector('.article-canvas') || exportClone.clone;
+      const rect = canvas.getBoundingClientRect();
+      const exportWidth = Math.ceil(rect.width || canvas.scrollWidth || activeSettings.canvasWidth);
+      const exportHeight = Math.ceil(canvas.scrollHeight || rect.height);
+      const segments = createSplitSegments(exportHeight, activeSplitSettings);
+      const exportOptions = {
         cacheBust: true,
         pixelRatio: 2,
-        filter: (node) => !node.classList?.contains('image-inline-actions')
-      });
-      const link = document.createElement('a');
-      link.download = 'flipped-editor-export.png';
-      link.href = url;
-      link.click();
-      setToast('PNG 已导出');
+        filter: (node) => !node.classList?.contains('image-inline-actions') && !node.classList?.contains('split-guide-lines')
+      };
+
+      if (!activeSplitSettings.enabled) {
+        const url = await toPng(exportClone.clone, exportOptions);
+        downloadDataUrl(url, 'xuwu-editor-export.png');
+        setToast('PNG 已导出');
+      } else {
+        for (const segment of segments) {
+          const frame = buildSegmentFrame(exportClone.clone, segment, exportWidth);
+          try {
+            const url = await toPng(frame, exportOptions);
+            downloadDataUrl(url, `xuwu-editor-export-${String(segment.index + 1).padStart(2, '0')}.png`);
+          } finally {
+            frame.remove();
+          }
+        }
+        setToast(`已导出 ${segments.length} 张切片`);
+      }
     } catch {
       setToast('PNG 导出失败，请稍后再试');
     } finally {
@@ -517,6 +565,11 @@ function App() {
             >
               <div className={`article-canvas ${template.className}`}>
                 <div className="article-body" dangerouslySetInnerHTML={{ __html: articleHtml }} />
+                {activeSplitSettings.enabled && (
+                  <div className="split-guide-lines">
+                    {previewCutLines.map((top) => <span key={top} style={{ top: `${top}%` }} />)}
+                  </div>
+                )}
               </div>
             </article>
           </div>
@@ -598,6 +651,63 @@ function App() {
                 <button key={color} className={activeSettings.accent === color ? 'active' : ''} onClick={() => setSettings((s) => ({ ...s, accent: color }))}>
                   <span style={{ background: color }} />{color.slice(1, 4).toUpperCase()}
                 </button>
+              ))}
+            </div>
+          </section>
+
+          <section className="control-section split-control-section">
+            <h2 className="section-title"><Scissors size={15} />长图切片</h2>
+            <div className="split-toggle-row">
+              <span>导出多张拼接图</span>
+              <button
+                className={activeSplitSettings.enabled ? 'active' : ''}
+                onClick={() => setSplitSettings((current) => ({ ...current, enabled: !activeSplitSettings.enabled }))}
+              >
+                {activeSplitSettings.enabled ? '已开启' : '关闭'}
+              </button>
+            </div>
+            <div className="segmented-grid split-mode-grid">
+              <button
+                className={activeSplitSettings.mode === 'equal' ? 'active' : ''}
+                onClick={() => setSplitSettings((current) => ({ ...current, mode: 'equal', enabled: true }))}
+              >
+                均分
+              </button>
+              <button
+                className={activeSplitSettings.mode === 'free' ? 'active' : ''}
+                onClick={() => setSplitSettings((current) => ({ ...current, mode: 'free', enabled: true }))}
+              >
+                自由裁切
+              </button>
+            </div>
+            {activeSplitSettings.mode === 'equal' ? (
+              <label className="split-number-field">
+                <span>均分份数</span>
+                <input
+                  type="number"
+                  min="2"
+                  max="9"
+                  value={activeSplitSettings.parts}
+                  onChange={(event) => setSplitSettings((current) => ({ ...current, enabled: true, parts: Math.min(9, Math.max(2, Number(event.target.value) || 2)) }))}
+                />
+              </label>
+            ) : (
+              <label className="split-cut-field">
+                <span>裁切位置 %</span>
+                <input
+                  value={activeSplitSettings.cuts}
+                  onChange={(event) => setSplitSettings((current) => ({ ...current, enabled: true, cuts: event.target.value }))}
+                  placeholder="例如 25, 50, 75"
+                />
+              </label>
+            )}
+            <div className="split-preset-row">
+              {[
+                ['50', '中间'],
+                ['33, 66', '三段'],
+                ['25, 50, 75', '四段']
+              ].map(([cuts, label]) => (
+                <button key={cuts} onClick={() => setSplitSettings((current) => ({ ...current, enabled: true, mode: 'free', cuts }))}>{label}</button>
               ))}
             </div>
           </section>

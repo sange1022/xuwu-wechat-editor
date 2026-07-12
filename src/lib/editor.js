@@ -167,8 +167,45 @@ export const canvasWidthPresets = [
   { id: 'custom', label: '自定义', width: null }
 ];
 
+export const defaultSplitSettings = {
+  enabled: false,
+  mode: 'equal',
+  parts: 3,
+  cuts: '50'
+};
+
 export function getFontFamily(fontId) {
   return fontOptions.find((option) => option.id === fontId)?.value || fontOptions[0].value;
+}
+
+export function parseSplitCuts(cuts) {
+  return String(cuts || '')
+    .split(/[,，\s]+/)
+    .map((value) => Number(value))
+    .filter((value) => Number.isFinite(value) && value > 0 && value < 100)
+    .map((value) => Math.round(value * 10) / 10)
+    .sort((a, b) => a - b)
+    .filter((value, index, list) => index === 0 || value !== list[index - 1]);
+}
+
+export function createSplitSegments(totalHeight, splitSettings = defaultSplitSettings) {
+  const height = Math.max(1, Math.round(Number(totalHeight) || 1));
+  if (!splitSettings.enabled) return [{ index: 0, start: 0, end: height, height }];
+
+  const parts = Math.min(9, Math.max(2, Math.round(Number(splitSettings.parts) || 2)));
+  const boundaries = splitSettings.mode === 'free'
+    ? [0, ...parseSplitCuts(splitSettings.cuts).map((percent) => Math.round(height * (percent / 100))), height]
+    : Array.from({ length: parts + 1 }, (_, index) => Math.round(height * (index / parts)));
+
+  return boundaries
+    .map((start, index) => ({ start, end: boundaries[index + 1] }))
+    .filter((segment) => Number.isFinite(segment.end) && segment.end > segment.start)
+    .map((segment, index) => ({
+      index,
+      start: segment.start,
+      end: segment.end,
+      height: segment.end - segment.start
+    }));
 }
 
 export function syncScrollTop({ sourceTop, sourceMax, targetMax }) {

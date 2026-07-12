@@ -596,7 +596,7 @@ textarea::placeholder {
   box-shadow: 0 7px 18px #2a262014;
 }
 
-.fullscreen-button {
+.preview-zoom-tools {
   position: absolute;
   z-index: 6;
   top: 15px;
@@ -604,13 +604,40 @@ textarea::placeholder {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 31px;
   height: 31px;
+  gap: 4px;
+  padding: 3px;
   border: 1px solid #706a5e1f;
   border-radius: 999px;
   color: #302d2894;
   background: #ffffff9e;
   box-shadow: 0 14px 34px #3f46801a;
+  backdrop-filter: blur(22px) saturate(1.24);
+}
+
+.preview-zoom-tools button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 25px;
+  height: 25px;
+  border: 0;
+  border-radius: 999px;
+  color: #302d2894;
+  background: transparent;
+}
+
+.preview-zoom-tools button:hover {
+  color: #1d1d1f;
+  background: #fffffff0;
+}
+
+.preview-zoom-tools span {
+  min-width: 38px;
+  color: #302d28a8;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
 }
 
 .preview-stage {
@@ -622,6 +649,10 @@ textarea::placeholder {
   overflow: auto;
   padding: 54px 28px 48px;
   background: linear-gradient(112deg, #ffffff7a, #ffffff14), linear-gradient(#ffffff3d, #eff4ff2e);
+}
+
+.preview-zoom-shell {
+  transition: zoom .18s ease;
 }
 
 .export-target {
@@ -1715,7 +1746,7 @@ body::after {
 .format-tool-group,
 .accent-color-group,
 .preview-mode-switch,
-.fullscreen-button,
+.preview-zoom-tools,
 .segmented-grid button,
 .image-insert-row input,
 .image-insert-row button,

@@ -24,7 +24,9 @@ import {
   RotateCcw,
   Scissors,
   Table2,
-  Upload
+  Upload,
+  ZoomIn,
+  ZoomOut
 } from 'lucide-react';
 import {
   accentPresets,
@@ -138,19 +140,28 @@ function downloadDataUrl(url, filename) {
   link.click();
 }
 
-function buildSegmentFrame(preparedClone, segment, width) {
-  const frame = document.createElement('div');
-  const segmentClone = preparedClone.cloneNode(true);
-  frame.className = 'export-segment-frame';
-  frame.style.width = `${width}px`;
-  frame.style.height = `${segment.height}px`;
-  frame.style.overflow = 'hidden';
-  frame.style.background = 'transparent';
-  segmentClone.style.transform = `translateY(-${segment.start}px)`;
-  segmentClone.style.transformOrigin = 'top left';
-  frame.appendChild(segmentClone);
-  document.body.appendChild(frame);
-  return frame;
+function loadImageFromDataUrl(url) {
+  return new Promise((resolve, reject) => {
+    const image = new window.Image();
+    image.onload = () => resolve(image);
+    image.onerror = reject;
+    image.src = url;
+  });
+}
+
+async function cropExportDataUrl(sourceUrl, segment, sourceCssHeight, backgroundColor) {
+  const image = await loadImageFromDataUrl(sourceUrl);
+  const scale = image.naturalHeight / Math.max(1, sourceCssHeight);
+  const sourceY = Math.round(segment.start * scale);
+  const sourceHeight = Math.max(1, Math.round(segment.height * scale));
+  const canvas = document.createElement('canvas');
+  canvas.width = image.naturalWidth;
+  canvas.height = sourceHeight;
+  const context = canvas.getContext('2d');
+  context.fillStyle = backgroundColor || '#ffffff';
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.drawImage(image, 0, sourceY, image.naturalWidth, sourceHeight, 0, 0, canvas.width, sourceHeight);
+  return canvas.toDataURL('image/png');
 }
 
 function App() {
@@ -160,6 +171,7 @@ function App() {
   const [imageUrl, setImageUrl] = useState('https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80');
   const [imageAssets, setImageAssets] = useLocalState('flipped-local-image-assets', {});
   const [previewMode, setPreviewMode] = useState('wechat');
+  const [previewZoom, setPreviewZoom] = useLocalState('flipped-local-preview-zoom', 1);
   const [toast, setToast] = useState('');
   const [copyOpen, setCopyOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -186,6 +198,7 @@ function App() {
 
   const activeSettings = { ...defaultSettings, ...settings };
   const activeSplitSettings = { ...defaultSplitSettings, ...splitSettings };
+  const activePreviewZoom = Math.min(1.8, Math.max(0.6, Number(previewZoom) || 1));
   const freeCutValues = parseSplitCuts(activeSplitSettings.cuts);
   const activeFreeCutValues = freeCutValues.length ? freeCutValues : [50];
   const previewSplitSegments = createSplitSegments(100, activeSplitSettings);
@@ -313,28 +326,23 @@ function App() {
       exportClone = await createExportCloneWithImages(exportRef.current);
       const canvas = exportClone.clone.querySelector('.article-canvas') || exportClone.clone;
       const rect = canvas.getBoundingClientRect();
-      const exportWidth = Math.ceil(rect.width || canvas.scrollWidth || activeSettings.canvasWidth);
       const exportHeight = Math.ceil(canvas.scrollHeight || rect.height);
       const segments = createSplitSegments(exportHeight, activeSplitSettings);
+      const backgroundColor = getComputedStyle(canvas).backgroundColor || '#ffffff';
       const exportOptions = {
         cacheBust: true,
         pixelRatio: 2,
         filter: (node) => !node.classList?.contains('image-inline-actions') && !node.classList?.contains('split-guide-lines')
       };
+      const fullExportUrl = await toPng(exportClone.clone, exportOptions);
 
       if (!activeSplitSettings.enabled) {
-        const url = await toPng(exportClone.clone, exportOptions);
-        downloadDataUrl(url, 'xuwu-editor-export.png');
+        downloadDataUrl(fullExportUrl, 'xuwu-editor-export.png');
         setToast('PNG 已导出');
       } else {
         for (const segment of segments) {
-          const frame = buildSegmentFrame(exportClone.clone, segment, exportWidth);
-          try {
-            const url = await toPng(frame, exportOptions);
-            downloadDataUrl(url, `xuwu-editor-export-${String(segment.index + 1).padStart(2, '0')}.png`);
-          } finally {
-            frame.remove();
-          }
+          const url = await cropExportDataUrl(fullExportUrl, segment, exportHeight, backgroundColor);
+          downloadDataUrl(url, `xuwu-editor-export-${String(segment.index + 1).padStart(2, '0')}.png`);
         }
         setToast(`已导出 ${segments.length} 张切片`);
       }
@@ -348,6 +356,10 @@ function App() {
 
   const fullScreen = () => {
     exportRef.current?.requestFullscreen?.();
+  };
+
+  const changePreviewZoom = (delta) => {
+    setPreviewZoom((current) => Math.min(1.8, Math.max(0.6, Math.round(((Number(current) || 1) + delta) * 10) / 10)));
   };
 
   const setFreeCutValue = (index, value) => {
@@ -594,22 +606,29 @@ function App() {
             <button className={previewMode === 'wechat' ? 'active' : ''} onClick={() => setPreviewMode('wechat')}>公众号</button>
             <button className={previewMode === 'html' ? 'active' : ''} onClick={() => setPreviewMode('html')}>HTML</button>
           </div>
-          <button className="fullscreen-button" title="全屏预览" onClick={fullScreen}><Maximize2 size={15} /></button>
+          <div className="preview-zoom-tools">
+            <button title="缩小预览" onClick={() => changePreviewZoom(-0.1)}><ZoomOut size={14} /></button>
+            <span>{Math.round(activePreviewZoom * 100)}%</span>
+            <button title="放大预览" onClick={() => changePreviewZoom(0.1)}><ZoomIn size={14} /></button>
+            <button title="全屏预览" onClick={fullScreen}><Maximize2 size={14} /></button>
+          </div>
           <div ref={previewStageRef} className="preview-stage" onScroll={(event) => syncScroll(event.currentTarget, textareaRef.current)}>
-            <article
-              ref={exportRef}
-              className={`export-target ${previewMode === 'wechat' ? 'wechat-mode' : ''}`}
-              style={articleVars}
-            >
-              <div className={`article-canvas ${template.className}`}>
-                <div className="article-body" dangerouslySetInnerHTML={{ __html: articleHtml }} />
-                {activeSplitSettings.enabled && (
-                  <div className="split-guide-lines">
-                    {previewCutLines.map((top) => <span key={top} style={{ top: `${top}%` }} />)}
-                  </div>
-                )}
-              </div>
-            </article>
+            <div className="preview-zoom-shell" style={{ zoom: activePreviewZoom }}>
+              <article
+                ref={exportRef}
+                className={`export-target ${previewMode === 'wechat' ? 'wechat-mode' : ''}`}
+                style={articleVars}
+              >
+                <div className={`article-canvas ${template.className}`}>
+                  <div className="article-body" dangerouslySetInnerHTML={{ __html: articleHtml }} />
+                  {activeSplitSettings.enabled && (
+                    <div className="split-guide-lines">
+                      {previewCutLines.map((top) => <span key={top} style={{ top: `${top}%` }} />)}
+                    </div>
+                  )}
+                </div>
+              </article>
+            </div>
           </div>
         </section>
 

@@ -1,0 +1,7 @@
+node_modules/
+dist/
+release/
+.codex/
+.DS_Store
+
+vite.config.js.timestamp-*.mjs

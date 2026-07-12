@@ -130,6 +130,8 @@ describe('style helpers', () => {
     expect(fontOptions.map((option) => option.label)).toEqual([
       '系统默认',
       '苹方黑体',
+      '思源宋体',
+      '思源黑体',
       '汇文明朝',
       '汇文仿宋',
       '宋体正文',
@@ -139,6 +141,8 @@ describe('style helpers', () => {
       '霞鹜文楷',
       '等宽代码'
     ]);
+    expect(getFontFamily('source-serif')).toContain('Source Han Serif SC');
+    expect(getFontFamily('source-sans')).toContain('Source Han Sans SC');
     expect(getFontFamily('huiwen-ming')).toContain('汇文明朝体');
     expect(getFontFamily('huiwen-fangsong')).toContain('汇文仿宋');
   });

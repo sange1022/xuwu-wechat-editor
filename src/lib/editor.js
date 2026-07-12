@@ -118,6 +118,16 @@ export const fontOptions = [
     value: '"PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif'
   },
   {
+    id: 'source-serif',
+    label: '思源宋体',
+    value: '"Source Han Serif SC", "Source Han Serif CN", "Noto Serif CJK SC", "Noto Serif SC", "思源宋体", "思源宋體", "Songti SC", SimSun, serif'
+  },
+  {
+    id: 'source-sans',
+    label: '思源黑体',
+    value: '"Source Han Sans SC", "Source Han Sans CN", "Noto Sans CJK SC", "Noto Sans SC", "思源黑体", "思源黑體", "PingFang SC", "Microsoft YaHei", sans-serif'
+  },
+  {
     id: 'huiwen-ming',
     label: '汇文明朝',
     value: '"Huiwen-mincho", "Huiwen Mincho", "汇文明朝体", "汇文明朝", "Noto Serif SC", "Songti SC", SimSun, serif'

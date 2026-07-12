@@ -38,12 +38,15 @@ import {
   defaultSettings,
   defaultSplitSettings,
   deleteMarkdownImageAt,
+  formatSplitCuts,
   fontOptions,
   imageRatioOptions,
+  parseSplitCuts,
   renderMarkdown,
   replaceMarkdownImageAt,
   syncScrollTop,
-  templates
+  templates,
+  updateSplitCut
 } from './lib/editor.js';
 import './styles.css';
 
@@ -183,6 +186,8 @@ function App() {
 
   const activeSettings = { ...defaultSettings, ...settings };
   const activeSplitSettings = { ...defaultSplitSettings, ...splitSettings };
+  const freeCutValues = parseSplitCuts(activeSplitSettings.cuts);
+  const activeFreeCutValues = freeCutValues.length ? freeCutValues : [50];
   const previewSplitSegments = createSplitSegments(100, activeSplitSettings);
   const previewCutLines = activeSplitSettings.enabled
     ? previewSplitSegments.slice(1).map((segment) => segment.start)
@@ -343,6 +348,39 @@ function App() {
 
   const fullScreen = () => {
     exportRef.current?.requestFullscreen?.();
+  };
+
+  const setFreeCutValue = (index, value) => {
+    setSplitSettings((current) => ({
+      ...current,
+      enabled: true,
+      mode: 'free',
+      cuts: updateSplitCut(current.cuts || activeSplitSettings.cuts, index, value)
+    }));
+  };
+
+  const addFreeCut = () => {
+    const values = activeFreeCutValues;
+    if (values.length >= 8) return;
+    const nextValue = values.length === 1
+      ? values[0] < 50 ? 75 : 25
+      : Math.min(95, Math.max(5, values[values.length - 1] + 10));
+    setSplitSettings((current) => ({
+      ...current,
+      enabled: true,
+      mode: 'free',
+      cuts: formatSplitCuts([...values, nextValue])
+    }));
+  };
+
+  const removeFreeCut = () => {
+    if (activeFreeCutValues.length <= 1) return;
+    setSplitSettings((current) => ({
+      ...current,
+      enabled: true,
+      mode: 'free',
+      cuts: formatSplitCuts(activeFreeCutValues.slice(0, -1))
+    }));
   };
 
   const syncScroll = (source, target) => {
@@ -692,14 +730,25 @@ function App() {
                 />
               </label>
             ) : (
-              <label className="split-cut-field">
-                <span>裁切位置 %</span>
-                <input
-                  value={activeSplitSettings.cuts}
-                  onChange={(event) => setSplitSettings((current) => ({ ...current, enabled: true, cuts: event.target.value }))}
-                  placeholder="例如 25, 50, 75"
-                />
-              </label>
+              <div className="split-slider-stack">
+                {activeFreeCutValues.map((value, index) => (
+                  <label key={index} className="split-slider-field">
+                    <span>裁切 {index + 1}<b>{value}%</b></span>
+                    <input
+                      type="range"
+                      min="1"
+                      max="99"
+                      step="1"
+                      value={value}
+                      onChange={(event) => setFreeCutValue(index, event.target.value)}
+                    />
+                  </label>
+                ))}
+                <div className="split-edit-row">
+                  <button onClick={addFreeCut}>增加分割点</button>
+                  <button onClick={removeFreeCut} disabled={activeFreeCutValues.length <= 1}>减少</button>
+                </div>
+              </div>
             )}
             <div className="split-preset-row">
               {[

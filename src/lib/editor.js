@@ -188,6 +188,19 @@ export function parseSplitCuts(cuts) {
     .filter((value, index, list) => index === 0 || value !== list[index - 1]);
 }
 
+export function formatSplitCuts(cuts) {
+  return parseSplitCuts(Array.isArray(cuts) ? cuts.join(',') : cuts)
+    .map((value) => Number.isInteger(value) ? String(value) : String(value.toFixed(1)))
+    .join(', ');
+}
+
+export function updateSplitCut(cuts, targetIndex, nextValue) {
+  const values = parseSplitCuts(cuts);
+  const nextValues = values.length ? values : [50];
+  nextValues[targetIndex] = Math.min(99, Math.max(1, Math.round(Number(nextValue) || 1)));
+  return formatSplitCuts(nextValues);
+}
+
 export function createSplitSegments(totalHeight, splitSettings = defaultSplitSettings) {
   const height = Math.max(1, Math.round(Number(totalHeight) || 1));
   if (!splitSettings.enabled) return [{ index: 0, start: 0, end: height, height }];

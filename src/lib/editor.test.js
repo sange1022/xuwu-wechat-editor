@@ -4,10 +4,12 @@ import {
   canvasWidthPresets,
   createArticleVars,
   createSplitSegments,
+  formatSplitCuts,
   fontOptions,
   getFontFamily,
   imageRatioOptions,
   parseSplitCuts,
+  updateSplitCut,
   createImageAssetToken,
   convertMarkdownImagesToAssets,
   deleteMarkdownImageAt,
@@ -154,6 +156,8 @@ describe('style helpers', () => {
       { index: 2, start: 600, end: 900, height: 300 }
     ]);
     expect(parseSplitCuts('50, 25，75 100 -1 xx 50')).toEqual([25, 50, 75]);
+    expect(formatSplitCuts([33.33, 66.66])).toBe('33.3, 66.7');
+    expect(updateSplitCut('25, 50, 75', 1, 62)).toBe('25, 62, 75');
     expect(createSplitSegments(1000, { enabled: true, mode: 'free', parts: 3, cuts: '25, 50, 75' })).toEqual([
       { index: 0, start: 0, end: 250, height: 250 },
       { index: 1, start: 250, end: 500, height: 250 },

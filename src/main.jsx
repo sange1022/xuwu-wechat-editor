@@ -172,6 +172,7 @@ function App() {
   const [imageAssets, setImageAssets] = useLocalState('flipped-local-image-assets', {});
   const [previewMode, setPreviewMode] = useState('wechat');
   const [previewZoom, setPreviewZoom] = useLocalState('flipped-local-preview-zoom', 1);
+  const [previewFitScale, setPreviewFitScale] = useState(1);
   const [toast, setToast] = useState('');
   const [copyOpen, setCopyOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -199,6 +200,7 @@ function App() {
   const activeSettings = { ...defaultSettings, ...settings };
   const activeSplitSettings = { ...defaultSplitSettings, ...splitSettings };
   const activePreviewZoom = Math.min(1.8, Math.max(0.6, Number(previewZoom) || 1));
+  const effectivePreviewZoom = activePreviewZoom * previewFitScale;
   const freeCutValues = parseSplitCuts(activeSplitSettings.cuts);
   const activeFreeCutValues = freeCutValues.length ? freeCutValues : [50];
   const previewSplitSegments = createSplitSegments(100, activeSplitSettings);
@@ -213,6 +215,25 @@ function App() {
     setMarkdown(result.markdown);
     setImageAssets(result.assets);
   }, []);
+
+  useEffect(() => {
+    const stage = previewStageRef.current;
+    if (!stage) return undefined;
+
+    const updateFitScale = () => {
+      const style = window.getComputedStyle(stage);
+      const horizontalPadding = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
+      const availableWidth = Math.max(1, stage.clientWidth - horizontalPadding);
+      const nextScale = Math.min(1, availableWidth / Math.max(1, activeSettings.canvasWidth));
+      setPreviewFitScale((current) => Math.abs(current - nextScale) < 0.002 ? current : nextScale);
+    };
+
+    updateFitScale();
+    if (typeof ResizeObserver === 'undefined') return undefined;
+    const observer = new ResizeObserver(updateFitScale);
+    observer.observe(stage);
+    return () => observer.disconnect();
+  }, [activeSettings.canvasWidth]);
 
   const format = (type) => {
     const textarea = textareaRef.current;
@@ -608,12 +629,12 @@ function App() {
           </div>
           <div className="preview-zoom-tools">
             <button title="缩小预览" onClick={() => changePreviewZoom(-0.1)}><ZoomOut size={14} /></button>
-            <span>{Math.round(activePreviewZoom * 100)}%</span>
+            <span>{Math.round(effectivePreviewZoom * 100)}%</span>
             <button title="放大预览" onClick={() => changePreviewZoom(0.1)}><ZoomIn size={14} /></button>
             <button title="全屏预览" onClick={fullScreen}><Maximize2 size={14} /></button>
           </div>
           <div ref={previewStageRef} className="preview-stage" onScroll={(event) => syncScroll(event.currentTarget, textareaRef.current)}>
-            <div className="preview-zoom-shell" style={{ zoom: activePreviewZoom }}>
+            <div className="preview-zoom-shell" style={{ zoom: effectivePreviewZoom }}>
               <article
                 ref={exportRef}
                 className={`export-target ${previewMode === 'wechat' ? 'wechat-mode' : ''}`}
@@ -813,4 +834,7 @@ function RangeField({ label, unit = '', value, min, max, step, onChange }) {
   );
 }
 
-createRoot(document.getElementById('root')).render(<App />);
+const rootElement = document.getElementById('root');
+const appRoot = rootElement.__xuwuRoot || createRoot(rootElement);
+rootElement.__xuwuRoot = appRoot;
+appRoot.render(<App />);
